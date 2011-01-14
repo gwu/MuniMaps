@@ -93,6 +93,50 @@ public class NextMuniDatabase extends SQLiteOpenHelper {
 		}
 	}
 	
+	private void markLastUpdated(SQLiteDatabase db, String key) {
+        Cursor lastUpdated = db.query(
+        		LastUpdatedTable.TABLE_NAME,
+        		new String[] { LastUpdatedTable.Column._ID, LastUpdatedTable.Column.KEY },
+        		String.format("%s == ?", LastUpdatedTable.Column.KEY), new String[] { key },
+        		null, null, null);
+        if (lastUpdated.moveToFirst()) {
+        	ContentValues values = new ContentValues(1);
+        	values.put(LastUpdatedTable.Column.TIME, System.currentTimeMillis());
+        	db.update(LastUpdatedTable.TABLE_NAME, values,
+        			String.format("%s == ?", LastUpdatedTable.Column.KEY),
+        			new String[] { key });
+        } else {
+        	ContentValues values = new ContentValues(2);
+        	values.put(LastUpdatedTable.Column.KEY, key);
+        	values.put(LastUpdatedTable.Column.TIME, System.currentTimeMillis());
+        	db.insertOrThrow(LastUpdatedTable.TABLE_NAME, LastUpdatedTable.Column.KEY, values);
+        }
+	}
+	
+	private boolean isFresh(String key, long shelfLife) {
+		boolean isFresh = false;
+		SQLiteDatabase db = getReadableDatabase();
+		db.beginTransaction();
+		try {
+			Cursor lastUpdated = db.query(
+					LastUpdatedTable.TABLE_NAME,
+					new String[] { LastUpdatedTable.Column._ID, LastUpdatedTable.Column.TIME },
+					String.format("%s == ?", LastUpdatedTable.Column.KEY), new String[] { key },
+					null, null, null);
+			if (lastUpdated.moveToFirst()) {
+				long timeElapsed = lastUpdated.getLong(1) - System.currentTimeMillis();
+				isFresh = timeElapsed < shelfLife;
+			} else {
+				isFresh = false;
+			}
+			db.setTransactionSuccessful();
+		} finally {
+			db.endTransaction();
+		}
+		
+		return isFresh;
+	}
+	
 	/**
 	 * Update the database with the given routes.
 	 * @param routes
@@ -143,23 +187,7 @@ public class NextMuniDatabase extends SQLiteOpenHelper {
 	        }
 	        
 	        // Mark the last updated time
-	        Cursor lastUpdated = db.query(
-	        		LastUpdatedTable.TABLE_NAME,
-	        		new String[] { LastUpdatedTable.Column._ID, LastUpdatedTable.Column.KEY },
-	        		String.format("%s == ?", LastUpdatedTable.Column.KEY), new String[] { LastUpdatedTable.ROUTES },
-	        		null, null, null);
-	        if (lastUpdated.moveToFirst()) {
-	        	ContentValues values = new ContentValues(1);
-	        	values.put(LastUpdatedTable.Column.TIME, System.currentTimeMillis());
-	        	db.update(LastUpdatedTable.TABLE_NAME, values,
-	        			String.format("%s == ?", LastUpdatedTable.Column.KEY),
-	        			new String[] { LastUpdatedTable.ROUTES });
-	        } else {
-	        	ContentValues values = new ContentValues(2);
-	        	values.put(LastUpdatedTable.Column.KEY, LastUpdatedTable.ROUTES);
-	        	values.put(LastUpdatedTable.Column.TIME, System.currentTimeMillis());
-	        	db.insertOrThrow(LastUpdatedTable.TABLE_NAME, LastUpdatedTable.Column.KEY, values);
-	        }
+	        markLastUpdated(db, LastUpdatedTable.ROUTES);
 			
 			db.setTransactionSuccessful();
 		} finally {
@@ -168,27 +196,7 @@ public class NextMuniDatabase extends SQLiteOpenHelper {
 	}
 
 	public boolean isRoutesFresh() {
-		boolean isFresh = false;
-		SQLiteDatabase db = getReadableDatabase();
-		db.beginTransaction();
-		try {
-			Cursor lastUpdated = db.query(
-					LastUpdatedTable.TABLE_NAME,
-					new String[] { LastUpdatedTable.Column._ID, LastUpdatedTable.Column.TIME },
-					String.format("%s == ?", LastUpdatedTable.Column.KEY), new String[] { LastUpdatedTable.ROUTES },
-					null, null, null);
-			if (lastUpdated.moveToFirst()) {
-				long timeElapsed = lastUpdated.getLong(1) - System.currentTimeMillis();
-				isFresh = timeElapsed < ONE_DAY_MS;
-			} else {
-				isFresh = false;
-			}
-			db.setTransactionSuccessful();
-		} finally {
-			db.endTransaction();
-		}
-		
-		return isFresh;
+		return isFresh(LastUpdatedTable.ROUTES, ONE_DAY_MS);
 	}
 
 	public void updateRouteDetail(RouteDetail routeDetail) {
@@ -228,6 +236,10 @@ public class NextMuniDatabase extends SQLiteOpenHelper {
 					db.insertOrThrow(PointTable.TABLE_NAME, PointTable.Column.PATH, pointValues);
 				}
 			}
+			
+			// Mark last udpated time.
+			markLastUpdated(db, routeDetail.mTag);
+			
 			db.setTransactionSuccessful();
 		} finally {
 			db.endTransaction();
@@ -235,7 +247,6 @@ public class NextMuniDatabase extends SQLiteOpenHelper {
 	}
 
 	public boolean isRouteFresh(String routeTag) {
-		// TODO
-		return false;
+		return isFresh(routeTag, ONE_DAY_MS);
 	}
 }
