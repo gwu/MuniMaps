@@ -13,12 +13,13 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.provider.BaseColumns;
+import android.util.Log;
 
 /**
  * Keeps a local cache of the NextMuni data.
  */
 public class NextMuniDatabase extends SQLiteOpenHelper {
-	private static final int DATABASE_VERSION = 3;
+	private static final int DATABASE_VERSION = 4;
 	private static final long ONE_DAY_MS = 24 * 60 * 60 * 1000;
 	
 	public static class LastUpdatedTable {
@@ -237,7 +238,14 @@ public class NextMuniDatabase extends SQLiteOpenHelper {
 				}
 			}
 			
-			// Mark last udpated time.
+			// Fill in the line/text color.
+			ContentValues detailValues = new ContentValues();
+			detailValues.put(RouteTable.Column.LINE_COLOR, routeDetail.mLineColor);
+			detailValues.put(RouteTable.Column.TEXT_COLOR, routeDetail.mTextColor);
+			db.update(RouteTable.TABLE_NAME, detailValues,
+					String.format("%s == ?", RouteTable.Column.TAG), new String[] { routeDetail.mTag });
+			
+			// Mark last updated time.
 			markLastUpdated(db, routeDetail.mTag);
 			
 			db.setTransactionSuccessful();

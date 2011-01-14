@@ -224,8 +224,22 @@ public class MuniMaps extends MapActivity {
 									path.addPoint(new Point(lat, lon));
 								} while (pointCursor.moveToNext());
 							}
+							pointCursor.close();
 						} while (pathCursor.moveToNext());
 					}
+					pathCursor.close();
+		    		
+		    		// Get the route details (line/text color).
+		    		Cursor routeCursor = managedQuery(
+		    				Uri.withAppendedPath(NextMuniContentProvider.RouteTable.CONTENT_URI, route.mTag),
+		    				null, null, null, null);
+		    		if (routeCursor.moveToFirst()) {
+		    			routeDetail.mLineColor = routeCursor.getString(
+		    					routeCursor.getColumnIndex(RouteTable.Column.LINE_COLOR));
+		    			routeDetail.mTextColor = routeCursor.getString(
+		    					routeCursor.getColumnIndex(RouteTable.Column.TEXT_COLOR));
+		    		}
+		    		routeCursor.close();
 		    	}
 				mHandler.post(new Runnable() {
 					@Override

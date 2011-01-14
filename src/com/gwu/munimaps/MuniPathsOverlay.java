@@ -7,6 +7,7 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Paint.Cap;
 import android.graphics.Paint.Style;
+import android.util.Log;
 
 import com.google.android.maps.GeoPoint;
 import com.google.android.maps.MapView;
@@ -52,7 +53,7 @@ public class MuniPathsOverlay extends Overlay {
 			boolean pathStarted = false;
 			android.graphics.Point canvasPoint = new android.graphics.Point();
 			for (Point point : path.mPoints) {
-				GeoPoint geoPoint = new GeoPoint((int) (point.mLat * 1e6), (int) (point.mLon * 1e6)); 
+				GeoPoint geoPoint = new GeoPoint((int) (point.mLat * 1e6), (int) (point.mLon * 1e6));
 				mapProjection.toPixels(geoPoint, canvasPoint);
 				if (!pathStarted) {
 					pathLine.moveTo(canvasPoint.x, canvasPoint.y);
@@ -61,8 +62,18 @@ public class MuniPathsOverlay extends Overlay {
 					pathLine.lineTo(canvasPoint.x, canvasPoint.y);
 				}
 			}
+			
+			int lineColor = 0xFF0000;
+			try {
+				lineColor = Integer.parseInt(route.mLineColor, 16);
+			} catch (NumberFormatException e) {
+				// Oh well, we'll use the default color.
+			}
+			// Full opacity on the line color.
+			lineColor |= 0xFF000000;
+			
 			Paint paint = new Paint();
-			paint.setColor(0xFFFF0000);
+			paint.setColor(lineColor);
 			paint.setStyle(Style.STROKE);
 			paint.setStrokeWidth(3);
 			paint.setStrokeCap(Cap.ROUND);

@@ -124,16 +124,18 @@ public class NextMuniContentProvider extends ContentProvider {
 	}
 	
 	private static final int NEXT_MUNI_ROUTE = 0;
-	private static final int NEXT_MUNI_PATH = 1;
-	private static final int NEXT_MUNI_POINT = 2;
-	private static final int NEXT_MUNI_DIRECTIONS = 3;
-	private static final int NEXT_MUNI_STOPS = 4;
-	private static final int NEXT_MUNI_PREDICTIONS = 5;
+	private static final int NEXT_MUNI_ROUTE_ID = 1;
+	private static final int NEXT_MUNI_PATH = 2;
+	private static final int NEXT_MUNI_POINT = 3;
+	private static final int NEXT_MUNI_DIRECTIONS = 4;
+	private static final int NEXT_MUNI_STOPS = 5;
+	private static final int NEXT_MUNI_PREDICTIONS = 6;
 	
 	private static final UriMatcher URI_MATCHER;
 	static {
 		URI_MATCHER = new UriMatcher(UriMatcher.NO_MATCH);
 	    URI_MATCHER.addURI(AUTHORITY, "route", NEXT_MUNI_ROUTE);
+	    URI_MATCHER.addURI(AUTHORITY, "route/*", NEXT_MUNI_ROUTE_ID);
 	    URI_MATCHER.addURI(AUTHORITY, "path/*", NEXT_MUNI_PATH);
 	    URI_MATCHER.addURI(AUTHORITY, "point/*", NEXT_MUNI_POINT);
 	    URI_MATCHER.addURI(AUTHORITY, "directions/*", NEXT_MUNI_DIRECTIONS);
@@ -156,6 +158,8 @@ public class NextMuniContentProvider extends ContentProvider {
 	    switch (URI_MATCHER.match(uri)) {
 	    case NEXT_MUNI_ROUTE:
 	    	return RouteTable.CONTENT_TYPE;
+	    case NEXT_MUNI_ROUTE_ID:
+	    	return RouteTable.ITEM_CONTENT_TYPE;
 	    case NEXT_MUNI_PATH:
 	    	return PathTable.CONTENT_TYPE;
 	    case NEXT_MUNI_POINT:
@@ -193,6 +197,13 @@ public class NextMuniContentProvider extends ContentProvider {
 			
 			queryBuilder.setTables(RouteTable.TABLE_NAME);
 			queryBuilder.setProjectionMap(RouteTable.PROJECTION_MAP);
+			break;
+		case NEXT_MUNI_ROUTE_ID:
+			String routeId = uri.getLastPathSegment();
+			queryBuilder.setTables(RouteTable.TABLE_NAME);
+			queryBuilder.setProjectionMap(RouteTable.PROJECTION_MAP);
+			selection = String.format("%s == ?", RouteTable.Column.TAG);
+			selectionArgs = new String[] { routeId };
 			break;
 		case NEXT_MUNI_PATH:
 			String routeTag = uri.getLastPathSegment();
