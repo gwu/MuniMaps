@@ -6,9 +6,11 @@ import android.location.LocationManager;
 import android.os.Bundle;
 
 public class MuniMapsLocationManager {
+	private static final int REQUIRED_ACCURACY_METERS = 20;
 	private LocationManager mLocationManager;
 	private LocationListener mCourseListener;
 	private LocationListener mPreciseListener;
+	private Location mBestLocation;
 	
 	public MuniMapsLocationManager(LocationManager manager) {
 		mLocationManager = manager;
@@ -20,8 +22,11 @@ public class MuniMapsLocationManager {
 
 			@Override
 			public void onLocationChanged(Location location) {
-				// TODO Auto-generated method stub
-				
+				mBestLocation = betterLocation(mBestLocation, location);
+				if (mBestLocation.hasAccuracy() && mBestLocation.getAccuracy() < REQUIRED_ACCURACY_METERS) {
+					mLocationManager.removeUpdates(mCourseListener);
+					mCourseListener = null;
+				}
 			}
 
 			@Override
@@ -49,8 +54,11 @@ public class MuniMapsLocationManager {
 
 			@Override
 			public void onLocationChanged(Location location) {
-				// TODO Auto-generated method stub
-				
+				mBestLocation = betterLocation(mBestLocation, location);
+				if (mBestLocation.hasAccuracy() && mBestLocation.getAccuracy() < REQUIRED_ACCURACY_METERS) {
+					mLocationManager.removeUpdates(mPreciseListener);
+					mPreciseListener = null;
+				}
 			}
 
 			@Override
@@ -77,14 +85,22 @@ public class MuniMapsLocationManager {
 	}
 	
 	public Location getBestLocation() {
+		if (mBestLocation != null) {
+			return mBestLocation;
+		}
 		Location courseLocation = mLocationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
 		Location preciseLocation = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
 		
-		// TODO: check for new updates.
 		return betterLocation(courseLocation, preciseLocation);
 	}
 	
 	private Location betterLocation(Location loc1, Location loc2) {
-		return loc1;
+		if (loc1 == null || !loc1.hasAccuracy()) {
+			return loc2;
+		}
+		if (loc2 == null || !loc2.hasAccuracy()) {
+			return loc1;
+		}
+		return loc1.getAccuracy() < loc2.getAccuracy() ? loc1 : loc2;
 	}
 }

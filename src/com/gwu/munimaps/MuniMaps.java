@@ -113,7 +113,6 @@ public class MuniMaps extends MapActivity {
 					new DialogInterface.OnMultiChoiceClickListener() {
 				@Override
 				public void onClick(DialogInterface dialog, int which, boolean isChecked) {
-					Toast.makeText(getApplicationContext(), "You chose " + routeNames.get(which), Toast.LENGTH_SHORT).show();
 					if (isChecked) {
 						mSelectedRoutes.add(mRoutes.get(which));
 					} else {
