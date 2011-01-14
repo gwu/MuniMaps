@@ -1,7 +1,9 @@
 package com.gwu.munimaps;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -11,11 +13,12 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.database.Cursor;
-import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -25,20 +28,22 @@ import com.google.android.maps.GeoPoint;
 import com.google.android.maps.MapActivity;
 import com.google.android.maps.MapView;
 import com.google.android.maps.Overlay;
-import com.google.android.maps.OverlayItem;
+import com.gwu.munimaps.NextMuniContentProvider.PathTable;
+import com.gwu.munimaps.NextMuniContentProvider.PointTable;
+import com.gwu.munimaps.NextMuniContentProvider.RouteTable;
 
 public class MuniMaps extends MapActivity {
     private static final int SELECT_ROUTES_DIALOG = 0;
     
 	private MapView mMapView;
     private List<Overlay> mMapOverlays;
-    private Drawable mDrawable;
-    private MuniItemizedOverlay mItemizedOverlay;
+    private MuniPathsOverlay mPathsOverlay;
     private MuniMapsLocationManager mLocationManager;
 	private ProgressDialog mRoutesProgressDialog;
 	private List<Route> mRoutes;
 	private ExecutorService mExecutor;
 	private Handler mHandler;
+	private Set<Route> mSelectedRoutes;
     
     /** Called when the activity is first created. */
     @Override
@@ -57,23 +62,18 @@ public class MuniMaps extends MapActivity {
         
         mMapView = (MapView) findViewById(R.id.mapview);
         mMapView.setBuiltInZoomControls(true);
-        
+		
         mMapOverlays = mMapView.getOverlays();
-        mDrawable = this.getResources().getDrawable(R.drawable.androidmarker);
-        mItemizedOverlay = new MuniItemizedOverlay(mDrawable);
+        mPathsOverlay = new MuniPathsOverlay();
+        mMapOverlays.add(mPathsOverlay);
         
-        GeoPoint point = new GeoPoint(19240000,-99120000);
-        OverlayItem overlayItem = new OverlayItem(point, "", "");
-        mItemizedOverlay.addOverlay(overlayItem);
+        mSelectedRoutes = new HashSet<Route>();
         
-        GeoPoint point2 = new GeoPoint(35410000, 139460000);
-        OverlayItem overlayItem2 = new OverlayItem(point2, "", "");
-        mItemizedOverlay.addOverlay(overlayItem2);
-        
-        mMapOverlays.add(mItemizedOverlay);
+        // Draw the route path overlays.
+        updateRouteOverlays();
     }
-    
-    @Override
+
+	@Override
     protected boolean isRouteDisplayed() {
         return false;
     }
@@ -114,6 +114,11 @@ public class MuniMaps extends MapActivity {
 				@Override
 				public void onClick(DialogInterface dialog, int which, boolean isChecked) {
 					Toast.makeText(getApplicationContext(), "You chose " + routeNames.get(which), Toast.LENGTH_SHORT).show();
+					if (isChecked) {
+						mSelectedRoutes.add(mRoutes.get(which));
+					} else {
+						mSelectedRoutes.remove(mRoutes.get(which));
+					}
 				}
 			});
 		}
@@ -121,6 +126,7 @@ public class MuniMaps extends MapActivity {
 			@Override
 			public void onClick(DialogInterface dialog, int which) {
 				dialog.dismiss();
+				updateRouteOverlays();
 			}
 		});
 		return builder.create();
@@ -136,7 +142,7 @@ public class MuniMaps extends MapActivity {
 					final List<Route> routes = new ArrayList<Route>();
 					Cursor routeCursor = managedQuery(
 							NextMuniContentProvider.RouteTable.CONTENT_URI,
-							null, null, null, null);
+							null, null, null, RouteTable.Column.TAG);
 					if (routeCursor.moveToFirst()) {
 						do {
 							Route route = new Route();
@@ -178,5 +184,61 @@ public class MuniMaps extends MapActivity {
 		Double lon = currentLocation.getLongitude() * 1e6;
 		GeoPoint geoPoint = new GeoPoint(lat.intValue(), lon.intValue());
 		mMapView.getController().animateTo(geoPoint);
+	}
+
+    /**
+     * Update the map overlays that display selected routes.
+     */
+    private void updateRouteOverlays() {
+    	mPathsOverlay.clearRoutes();
+    	// Start a thread to update the route details and draw them.
+    	mExecutor.execute(new Runnable() {
+			@Override
+			public void run() {
+				final List<RouteDetail> routeDetails = new ArrayList<RouteDetail>();
+		    	for (Route route : mSelectedRoutes) {
+		    		RouteDetail routeDetail = new RouteDetail(route.mTag);
+		    		routeDetails.add(routeDetail);
+		    		
+		    		// Get the paths for the route.
+					Cursor pathCursor = managedQuery(
+							Uri.withAppendedPath(NextMuniContentProvider.PathTable.CONTENT_URI, route.mTag),
+							null, null, null, null);
+					if (pathCursor.moveToFirst()) {
+						do {
+							long pathId = pathCursor.getLong(
+									pathCursor.getColumnIndex(PathTable.Column._ID));
+							Path path = new Path();
+							routeDetail.addPath(path);
+							
+							// Get the points for the path.
+							Cursor pointCursor = managedQuery(
+									Uri.withAppendedPath(NextMuniContentProvider.PointTable.CONTENT_URI,
+											Long.toString(pathId)),
+									null, null, null, null);
+							if (pointCursor.moveToFirst()) {
+								do {
+									double lat = pointCursor.getDouble(
+											pointCursor.getColumnIndex(PointTable.Column.LAT));
+									double lon = pointCursor.getDouble(
+											pointCursor.getColumnIndex(PointTable.Column.LON));
+									path.addPoint(new Point(lat, lon));
+								} while (pointCursor.moveToNext());
+							}
+						} while (pathCursor.moveToNext());
+					}
+		    	}
+				mHandler.post(new Runnable() {
+					@Override
+					public void run() {
+						// Add new overlays for the updated paths.
+						for (RouteDetail routeDetail : routeDetails) {
+							mPathsOverlay.addRoute(routeDetail);
+						}
+						mMapView.invalidate();
+					}
+				});
+			}
+		});
 	}
 }

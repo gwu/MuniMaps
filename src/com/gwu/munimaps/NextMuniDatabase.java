@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.gwu.munimaps.NextMuniContentProvider.PathTable;
+import com.gwu.munimaps.NextMuniContentProvider.PointTable;
 import com.gwu.munimaps.NextMuniContentProvider.RouteTable;
 import android.content.ContentValues;
 import android.content.Context;
@@ -16,7 +18,7 @@ import android.provider.BaseColumns;
  * Keeps a local cache of the NextMuni data.
  */
 public class NextMuniDatabase extends SQLiteOpenHelper {
-	private static final int DATABASE_VERSION = 2;
+	private static final int DATABASE_VERSION = 3;
 	private static final long ONE_DAY_MS = 24 * 60 * 60 * 1000;
 	
 	public static class LastUpdatedTable {
@@ -62,6 +64,8 @@ public class NextMuniDatabase extends SQLiteOpenHelper {
 			// Create all tables.
 			LastUpdatedTable.create(db);
 			RouteTable.create(db);
+			PathTable.create(db);
+			PointTable.create(db);
 			
 			db.setTransactionSuccessful();
 		} finally {
@@ -78,6 +82,8 @@ public class NextMuniDatabase extends SQLiteOpenHelper {
 			// Drop all tables.
 			LastUpdatedTable.drop(db);
 			RouteTable.drop(db);
+			PathTable.drop(db);
+			PointTable.drop(db);
 			
 			// Create the tables again.
 			onCreate(db);
@@ -101,7 +107,7 @@ public class NextMuniDatabase extends SQLiteOpenHelper {
 		SQLiteDatabase db = getWritableDatabase();
 		db.beginTransaction();
 		try {
-			// First read all the existing routes in the db.
+			// First read all the existing routes in the database.
 			final String[] COLUMNS = new String[] { RouteTable.Column._ID, RouteTable.Column.TAG };
 			Cursor existingRoutes = db.query(RouteTable.TABLE_NAME, COLUMNS, null, null, null, null, null);
 			try {
@@ -183,5 +189,53 @@ public class NextMuniDatabase extends SQLiteOpenHelper {
 		}
 		
 		return isFresh;
+	}
+
+	public void updateRouteDetail(RouteDetail routeDetail) {
+		SQLiteDatabase db = getWritableDatabase();
+		db.beginTransaction();
+		try {
+			// Get all paths from the route.
+			Cursor pathCursor = db.query(PathTable.TABLE_NAME, new String[] { PathTable.Column._ID },
+					String.format("%s == ?", PathTable.Column.ROUTE),
+					new String[] { routeDetail.mTag }, null, null, null);
+			if (pathCursor.moveToFirst()) {
+				int pathId = pathCursor.getInt(0);
+				
+				// Delete all points for this path.
+				db.delete(PointTable.TABLE_NAME,
+						String.format("%s == ?", PointTable.Column.PATH),
+						new String[] { Integer.toString(pathId) });
+			}
+			// Delete the paths.
+			db.delete(PathTable.TABLE_NAME,
+					String.format("%s == ?", PathTable.Column.ROUTE),
+					new String[] { routeDetail.mTag });
+			
+			// Fill the path and point tables.
+			for (Path path : routeDetail.mPaths) {
+				// Insert the path.
+				ContentValues pathValues = new ContentValues();
+				pathValues.put(PathTable.Column.ROUTE, routeDetail.mTag);
+				long pathId = db.insertOrThrow(PathTable.TABLE_NAME, PathTable.Column.ROUTE, pathValues);
+				
+				// Insert the points in the path.
+				for (Point point : path.mPoints) {
+					ContentValues pointValues = new ContentValues();
+					pointValues.put(PointTable.Column.PATH, pathId);
+					pointValues.put(PointTable.Column.LAT, point.mLat);
+					pointValues.put(PointTable.Column.LON, point.mLon);
+					db.insertOrThrow(PointTable.TABLE_NAME, PointTable.Column.PATH, pointValues);
+				}
+			}
+			db.setTransactionSuccessful();
+		} finally {
+			db.endTransaction();
+		}
+	}
+
+	public boolean isRouteFresh(String routeTag) {
+		// TODO
+		return false;
 	}
 }
