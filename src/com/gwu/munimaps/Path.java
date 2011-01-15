@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Path {
-	public List<Point> mPoints;
+	private List<Point> mPoints;
 	
 	public Path() {
 		mPoints = new ArrayList<Point>();
@@ -19,5 +19,9 @@ public class Path {
 
 	public void addPoint(Point point) {
 		mPoints.add(point);
+	}
+	
+	public List<Point> getPoints() {
+		return mPoints;
 	}
 }

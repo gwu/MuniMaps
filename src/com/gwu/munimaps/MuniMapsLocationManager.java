@@ -4,6 +4,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.util.Log;
 
 public class MuniMapsLocationManager {
 	private static final int REQUIRED_ACCURACY_METERS = 20;
@@ -22,6 +23,7 @@ public class MuniMapsLocationManager {
 
 			@Override
 			public void onLocationChanged(Location location) {
+				Log.i("Rough location updated", "foo");
 				mBestLocation = betterLocation(mBestLocation, location);
 				if (mBestLocation.hasAccuracy() && mBestLocation.getAccuracy() < REQUIRED_ACCURACY_METERS) {
 					mLocationManager.removeUpdates(mCourseListener);
@@ -54,6 +56,7 @@ public class MuniMapsLocationManager {
 
 			@Override
 			public void onLocationChanged(Location location) {
+				Log.i("Location updated!", "foo");
 				mBestLocation = betterLocation(mBestLocation, location);
 				if (mBestLocation.hasAccuracy() && mBestLocation.getAccuracy() < REQUIRED_ACCURACY_METERS) {
 					mLocationManager.removeUpdates(mPreciseListener);

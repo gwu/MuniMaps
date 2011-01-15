@@ -13,6 +13,7 @@ import android.sax.Element;
 import android.sax.EndElementListener;
 import android.sax.RootElement;
 import android.sax.StartElementListener;
+import android.util.Log;
 import android.util.Xml;
 
 /**
@@ -27,13 +28,13 @@ public class NextMuniFetcher {
 	public NextMuniFetcher() {
 	}
 
-	public List<Route> fetchRoutes() {
+	public List<RouteListing> fetchRoutes() {
 		try {
 			URL routesUrl = new URL(ROUTES_URL);
 			try {
 				InputStream inputStream = routesUrl.openConnection().getInputStream();
 				
-				final List<Route> routes = new ArrayList<Route>();
+				final List<RouteListing> routes = new ArrayList<RouteListing>();
 				RootElement rootElement = new RootElement("body");
 				Element routeElement = rootElement.getChild("route");
 				routeElement.setStartElementListener(new StartElementListener() {
@@ -42,7 +43,7 @@ public class NextMuniFetcher {
 						String tag = attributes.getValue("tag");
 						String title = attributes.getValue("title");
 						String shortTitle = attributes.getValue("shortTitle");
-						routes.add(new Route(tag, title, shortTitle));
+						routes.add(new RouteListing(tag, title, shortTitle));
 					}
 				});
 		        try {
@@ -60,20 +61,21 @@ public class NextMuniFetcher {
 		}
 	}
 	
-	public RouteDetail fetchRouteDetail(String tag) {
+	public RouteInfo fetchRouteDetail(String tag) {
+		Log.i("Fetching route detail", tag);
 		try {
 			URL routeUrl = new URL(String.format(ROUTE_CONFIG_URL, tag));
 			try {
 				InputStream inputStream = routeUrl.openConnection().getInputStream();
 				
-				final RouteDetail routeDetail = new RouteDetail(tag);
+				final RouteInfo routeDetail = new RouteInfo(tag);
 				RootElement rootElement = new RootElement("body");
 				Element routeElement = rootElement.getChild("route");
 				routeElement.setStartElementListener(new StartElementListener() {
 					@Override
 					public void start(Attributes attributes) {
-						routeDetail.mLineColor = attributes.getValue("color");
-						routeDetail.mTextColor = attributes.getValue("oppositeColor");
+						routeDetail.setLineColor(attributes.getValue("color"));
+						routeDetail.setTextColor(attributes.getValue("oppositeColor"));
 					}
 				});
 				Element stopElement = routeElement.getChild("stop");
@@ -118,6 +120,7 @@ public class NextMuniFetcher {
 						double lat = Double.parseDouble(attributes.getValue("lat"));
 						double lon = Double.parseDouble(attributes.getValue("lon"));
 						Point point = new Point(lat, lon);
+						Log.i("Fetched point", "point");
 						path.addPoint(point);
 					}
 				});
@@ -125,7 +128,7 @@ public class NextMuniFetcher {
 					@Override
 					public void end() {
 						routeDetail.addPath(path.clone());
-						path.mPoints.clear();
+						path.getPoints().clear();
 					}
 				});
 		        try {

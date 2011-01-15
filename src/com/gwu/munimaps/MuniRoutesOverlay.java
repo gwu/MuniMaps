@@ -1,8 +1,5 @@
 package com.gwu.munimaps;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Paint.Cap;
@@ -14,19 +11,13 @@ import com.google.android.maps.MapView;
 import com.google.android.maps.Overlay;
 import com.google.android.maps.Projection;
 
-public class MuniPathsOverlay extends Overlay {
-	public List<RouteDetail> mRoutes;
+public class MuniRoutesOverlay extends Overlay {
+	private RouteData mRouteData;
+	private MuniMapsPrefs mPrefs;
 
-	public MuniPathsOverlay() {
-		mRoutes = new ArrayList<RouteDetail>();
-	}
-
-	public void addRoute(RouteDetail route) {
-		mRoutes.add(route);
-	}
-	
-	public void clearRoutes() {
-		mRoutes.clear();
+	public MuniRoutesOverlay(RouteData routeData, MuniMapsPrefs prefs) {
+		mRouteData = routeData;
+		mPrefs = prefs;
 	}
 
 	@Override
@@ -36,8 +27,11 @@ public class MuniPathsOverlay extends Overlay {
 			return;
 		}
 		
-		for (RouteDetail route : mRoutes) {
-			drawPath(canvas, mapView, route);
+		for (String routeTag : mPrefs.getSelectedRouteTags()) {
+			if (mRouteData.isRouteInfoCached(routeTag)) {
+				RouteInfo routeInfo = mRouteData.getRouteInfo(routeTag);
+				drawPath(canvas, mapView, routeInfo);
+			}
 		}
 	}
 	
@@ -46,13 +40,13 @@ public class MuniPathsOverlay extends Overlay {
 	 * @param canvas
 	 * @param route
 	 */
-	private void drawPath(Canvas canvas, MapView mapView, RouteDetail route) {
+	private void drawPath(Canvas canvas, MapView mapView, RouteInfo route) {
 		Projection mapProjection = mapView.getProjection();
-		for (Path path : route.mPaths) {
+		for (Path path : route.getPaths()) {
 			android.graphics.Path pathLine = new android.graphics.Path();
 			boolean pathStarted = false;
 			android.graphics.Point canvasPoint = new android.graphics.Point();
-			for (Point point : path.mPoints) {
+			for (Point point : path.getPoints()) {
 				GeoPoint geoPoint = new GeoPoint((int) (point.mLat * 1e6), (int) (point.mLon * 1e6));
 				mapProjection.toPixels(geoPoint, canvasPoint);
 				if (!pathStarted) {
@@ -65,7 +59,7 @@ public class MuniPathsOverlay extends Overlay {
 			
 			int lineColor = 0xFF0000;
 			try {
-				lineColor = Integer.parseInt(route.mLineColor, 16);
+				lineColor = Integer.parseInt(route.getLineColor(), 16);
 			} catch (NumberFormatException e) {
 				// Oh well, we'll use the default color.
 			}

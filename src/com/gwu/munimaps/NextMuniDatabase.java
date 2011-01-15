@@ -19,7 +19,7 @@ import android.util.Log;
  * Keeps a local cache of the NextMuni data.
  */
 public class NextMuniDatabase extends SQLiteOpenHelper {
-	private static final int DATABASE_VERSION = 4;
+	private static final int DATABASE_VERSION = 7;
 	private static final long ONE_DAY_MS = 24 * 60 * 60 * 1000;
 	
 	public static class LastUpdatedTable {
@@ -142,11 +142,11 @@ public class NextMuniDatabase extends SQLiteOpenHelper {
 	 * Update the database with the given routes.
 	 * @param routes
 	 */
-	public void updateRoutes(List<Route> routes) {
+	public void updateRoutes(List<RouteListing> routes) {
 		// Index the routes by their tag.
-		Map<String, Route> routesByTag = new HashMap<String, Route>(routes.size());
-		for (Route route : routes) {
-			routesByTag.put(route.mTag, route);
+		Map<String, RouteListing> routesByTag = new HashMap<String, RouteListing>(routes.size());
+		for (RouteListing route : routes) {
+			routesByTag.put(route.getTag(), route);
 		}
 		
 		SQLiteDatabase db = getWritableDatabase();
@@ -163,9 +163,9 @@ public class NextMuniDatabase extends SQLiteOpenHelper {
 		        	if (routesByTag.containsKey(tag)) {
 		        		// Update existing routes.
 		        		ContentValues values = new ContentValues(2);
-		        		Route newRoute = routesByTag.remove(tag);
-		        		values.put(RouteTable.Column.TITLE, newRoute.mTitle);
-		        		values.put(RouteTable.Column.SHORT_TITLE, newRoute.mShortTitle);
+		        		RouteListing newRoute = routesByTag.remove(tag);
+		        		values.put(RouteTable.Column.TITLE, newRoute.getTitle());
+		        		values.put(RouteTable.Column.SHORT_TITLE, newRoute.getShortTitle());
 		        		db.update(RouteTable.TABLE_NAME, values,
 		        				String.format("%s == ?", RouteTable.Column._ID), new String[] { Long.toString(id) });
 		        	} else {
@@ -179,11 +179,11 @@ public class NextMuniDatabase extends SQLiteOpenHelper {
 			}
 	        
 	        // Add any brand new routes.
-	        for (Route newRoute : routesByTag.values()) {
+	        for (RouteListing newRoute : routesByTag.values()) {
 	        	ContentValues values = new ContentValues(3);
-	        	values.put(RouteTable.Column.TAG, newRoute.mTag);
-	        	values.put(RouteTable.Column.TITLE, newRoute.mTitle);
-	        	values.put(RouteTable.Column.SHORT_TITLE, newRoute.mShortTitle);
+	        	values.put(RouteTable.Column.TAG, newRoute.getTag());
+	        	values.put(RouteTable.Column.TITLE, newRoute.getTitle());
+	        	values.put(RouteTable.Column.SHORT_TITLE, newRoute.getShortTitle());
 	        	db.insertOrThrow(RouteTable.TABLE_NAME, RouteTable.Column.TAG, values);
 	        }
 	        
@@ -200,14 +200,14 @@ public class NextMuniDatabase extends SQLiteOpenHelper {
 		return isFresh(LastUpdatedTable.ROUTES, ONE_DAY_MS);
 	}
 
-	public void updateRouteDetail(RouteDetail routeDetail) {
+	public void updateRouteDetail(RouteInfo routeDetail) {
 		SQLiteDatabase db = getWritableDatabase();
 		db.beginTransaction();
 		try {
 			// Get all paths from the route.
 			Cursor pathCursor = db.query(PathTable.TABLE_NAME, new String[] { PathTable.Column._ID },
 					String.format("%s == ?", PathTable.Column.ROUTE),
-					new String[] { routeDetail.mTag }, null, null, null);
+					new String[] { routeDetail.getTag() }, null, null, null);
 			if (pathCursor.moveToFirst()) {
 				int pathId = pathCursor.getInt(0);
 				
@@ -219,17 +219,17 @@ public class NextMuniDatabase extends SQLiteOpenHelper {
 			// Delete the paths.
 			db.delete(PathTable.TABLE_NAME,
 					String.format("%s == ?", PathTable.Column.ROUTE),
-					new String[] { routeDetail.mTag });
+					new String[] { routeDetail.getTag() });
 			
 			// Fill the path and point tables.
-			for (Path path : routeDetail.mPaths) {
+			for (Path path : routeDetail.getPaths()) {
 				// Insert the path.
 				ContentValues pathValues = new ContentValues();
-				pathValues.put(PathTable.Column.ROUTE, routeDetail.mTag);
+				pathValues.put(PathTable.Column.ROUTE, routeDetail.getTag());
 				long pathId = db.insertOrThrow(PathTable.TABLE_NAME, PathTable.Column.ROUTE, pathValues);
 				
 				// Insert the points in the path.
-				for (Point point : path.mPoints) {
+				for (Point point : path.getPoints()) {
 					ContentValues pointValues = new ContentValues();
 					pointValues.put(PointTable.Column.PATH, pathId);
 					pointValues.put(PointTable.Column.LAT, point.mLat);
@@ -240,13 +240,13 @@ public class NextMuniDatabase extends SQLiteOpenHelper {
 			
 			// Fill in the line/text color.
 			ContentValues detailValues = new ContentValues();
-			detailValues.put(RouteTable.Column.LINE_COLOR, routeDetail.mLineColor);
-			detailValues.put(RouteTable.Column.TEXT_COLOR, routeDetail.mTextColor);
+			detailValues.put(RouteTable.Column.LINE_COLOR, routeDetail.getLineColor());
+			detailValues.put(RouteTable.Column.TEXT_COLOR, routeDetail.getTextColor());
 			db.update(RouteTable.TABLE_NAME, detailValues,
-					String.format("%s == ?", RouteTable.Column.TAG), new String[] { routeDetail.mTag });
+					String.format("%s == ?", RouteTable.Column.TAG), new String[] { routeDetail.getTag() });
 			
 			// Mark last updated time.
-			markLastUpdated(db, routeDetail.mTag);
+			markLastUpdated(db, routeDetail.getTag());
 			
 			db.setTransactionSuccessful();
 		} finally {

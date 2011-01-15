@@ -12,6 +12,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteQueryBuilder;
 import android.net.Uri;
 import android.provider.BaseColumns;
+import android.util.Log;
 
 public class NextMuniContentProvider extends ContentProvider {
 	public static final String AUTHORITY = "com.gwu.munimaps.nextmunicontentprovider";
@@ -191,7 +192,7 @@ public class NextMuniContentProvider extends ContentProvider {
 		switch (URI_MATCHER.match(uri)) {
 		case NEXT_MUNI_ROUTE:
 			if (!mNextMuniDatabase.isRoutesFresh()) {
-				List<Route> routes = mNextMuniFetcher.fetchRoutes();
+				List<RouteListing> routes = mNextMuniFetcher.fetchRoutes();
 				mNextMuniDatabase.updateRoutes(routes);
 			}
 			
@@ -208,8 +209,9 @@ public class NextMuniContentProvider extends ContentProvider {
 		case NEXT_MUNI_PATH:
 			String routeTag = uri.getLastPathSegment();
 			if (!mNextMuniDatabase.isRouteFresh(routeTag)) {
+				Log.i("refreshing", "paths");
 				// Update route in database.
-				RouteDetail routeDetail = mNextMuniFetcher.fetchRouteDetail(routeTag);
+				RouteInfo routeDetail = mNextMuniFetcher.fetchRouteDetail(routeTag);
 				mNextMuniDatabase.updateRouteDetail(routeDetail);
 			}
 			
