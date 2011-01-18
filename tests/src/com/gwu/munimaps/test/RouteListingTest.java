@@ -1,10 +1,10 @@
 package com.gwu.munimaps.test;
 
+import junit.framework.TestCase;
+
 import com.gwu.munimaps.RouteListing;
 
-import android.test.AndroidTestCase;
-
-public class RouteListingTest extends AndroidTestCase {
+public class RouteListingTest extends TestCase {
 
 	@Override
 	protected void setUp() throws Exception {

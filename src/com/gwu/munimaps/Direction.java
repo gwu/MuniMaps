@@ -13,7 +13,7 @@ public class Direction {
 	}
 
 	@Override
-	protected Direction clone() {
+	public Direction clone() {
 		Direction direction = new Direction();
 		direction.mTag = mTag;
 		direction.mTitle = mTitle;

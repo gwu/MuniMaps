@@ -11,8 +11,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <provider android:name="com.gwu.munimaps.NextMuniContentProvider"
-				  android:authorities="com.gwu.munimaps.nextmunicontentprovider">
+        <provider android:name="com.gwu.munimaps.provider.NextMuniContentProvider"
+				  android:authorities="com.gwu.munimaps.provider.nextmunicontentprovider">
 		</provider>
         <uses-library android:name="com.google.android.maps" />
     </application>

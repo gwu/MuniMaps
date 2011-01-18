@@ -5,9 +5,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.gwu.munimaps.NextMuniContentProvider.PathTable;
-import com.gwu.munimaps.NextMuniContentProvider.PointTable;
-import com.gwu.munimaps.NextMuniContentProvider.RouteTable;
+import com.gwu.munimaps.provider.PathTable;
+import com.gwu.munimaps.provider.PointTable;
+import com.gwu.munimaps.provider.RouteTable;
 
 import android.app.Activity;
 import android.database.Cursor;
@@ -41,7 +41,7 @@ public class RouteData {
 			return;
 		}
 		mRouteListings = new ArrayList<RouteListing>();
-		Cursor cursor = mActivity.managedQuery(
+		Cursor cursor = query(
 				RouteTable.CONTENT_URI,
 				null,  // Select all columns.
 				null, null,  // Select all rows.
@@ -86,14 +86,16 @@ public class RouteData {
 	public void fetchAndCacheRouteInfo(String routeTag) {
 		if (isRouteInfoCached(routeTag)) {
 			// Already cached, don't do anything.
+			Log.i("Route info cached", "for " + routeTag);
 			return;
 		}
 		
 		RouteInfo routeInfo = new RouteInfo(routeTag);
-		
+
+		Log.i("Fetching routeInfo", "");
 		// Get the paths for the route.
-		Cursor pathCursor = mActivity.managedQuery(
-				Uri.withAppendedPath(RouteTable.CONTENT_URI, routeTag),
+		Cursor pathCursor = query(
+				Uri.withAppendedPath(PathTable.CONTENT_URI, routeTag),
 				null,  // Select all columns.
 				null, null,  // Select all rows.
 				null);  // No sort order.
@@ -106,11 +108,11 @@ public class RouteData {
 				Log.i("Path found", "p");
 		
 				// Get the points for the path.
-				Cursor pointCursor = mActivity.managedQuery(
+				Cursor pointCursor = query(
 						Uri.withAppendedPath(PointTable.CONTENT_URI, Long.toString(pathId)),
 						null,  // Select all columns.
 						null, null,  // Select all rows.
-						null);  // No sort order.
+						PointTable.Column._ID);  // No sort order.
 				if (pointCursor.moveToFirst()) {
 					do {
 						double lat = pointCursor.getDouble(
@@ -128,7 +130,7 @@ public class RouteData {
 		pathCursor.close();
 		
 		// Get the route details (line/text color).
-		Cursor routeCursor = mActivity.managedQuery(
+		Cursor routeCursor = query(
 				Uri.withAppendedPath(RouteTable.CONTENT_URI, routeTag),
 				null,  // All columns.
 				null, null,  // All rows.
@@ -140,6 +142,8 @@ public class RouteData {
 					routeCursor.getColumnIndex(RouteTable.Column.TEXT_COLOR)));
 		}
 		routeCursor.close();
+		
+		Log.i("done fetching route info", "");
 		
 		// Finally, update the cache.
 		mRouteInfoMap.put(routeTag, routeInfo);
@@ -155,5 +159,14 @@ public class RouteData {
 			fetchAndCacheRouteInfo(routeTag);
 		}
 		return mRouteInfoMap.get(routeTag);
+	}
+	
+	/**
+	 * Query a content provider.  Wrapper around Activity.managedQuery().
+	 * @return a cursor.
+	 */
+	protected Cursor query(Uri uri, String[] projection, String selection,
+			String[] selectionArgs, String sortOrder) {
+		return mActivity.managedQuery(uri, projection, selection, selectionArgs, sortOrder);
 	}
 }

@@ -43,6 +43,7 @@ public class MuniRoutesOverlay extends Overlay {
 	private void drawPath(Canvas canvas, MapView mapView, RouteInfo route) {
 		Projection mapProjection = mapView.getProjection();
 		for (Path path : route.getPaths()) {
+			Log.i("Drawing path", path.toString());
 			android.graphics.Path pathLine = new android.graphics.Path();
 			boolean pathStarted = false;
 			android.graphics.Point canvasPoint = new android.graphics.Point();

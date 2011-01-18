@@ -11,7 +11,7 @@ public class Path {
 	}
 
 	@Override
-	protected Path clone() {
+	public Path clone() {
 		Path path = new Path();
 		path.mPoints = new ArrayList<Point>(mPoints);
 		return path;
