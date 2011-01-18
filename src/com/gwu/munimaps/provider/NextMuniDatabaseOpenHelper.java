@@ -8,7 +8,7 @@ import android.database.sqlite.SQLiteOpenHelper;
  * Keeps a local cache of the NextMuni data.
  */
 public class NextMuniDatabaseOpenHelper extends SQLiteOpenHelper {
-	private static final int DATABASE_VERSION = 10;
+	private static final int DATABASE_VERSION = 11;
 	
 	private NextMuniDatabase mNextMuniDatabase;
 	

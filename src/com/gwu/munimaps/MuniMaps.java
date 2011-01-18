@@ -48,7 +48,7 @@ public class MuniMaps extends MapActivity {
         
         cacheSelectedRouteInfo();
     }
-
+    
 	@Override
     protected boolean isRouteDisplayed() {
         return false;
@@ -155,12 +155,26 @@ public class MuniMaps extends MapActivity {
 	 * Fetch and cache the selected route info.
 	 */
 	private void cacheSelectedRouteInfo() {
+		mMuniMap.invalidate();
+		mRoutesProgressDialog = ProgressDialog.show(this, "", getString(R.string.loading));
 		mExecutor.execute(new Runnable() {
 			@Override
 			public void run() {
 				for (String routeTag : mPrefs.getSelectedRouteTags()) {
 					mRouteData.fetchAndCacheRouteInfo(routeTag);
+					mHandler.post(new Runnable() {
+						@Override
+						public void run() {
+							mMuniMap.invalidate();
+						}
+					});
 				}
+				mHandler.post(new Runnable() {
+					@Override
+					public void run() {
+						mRoutesProgressDialog.dismiss();
+					}
+				});
 			}
 		});
 	}
